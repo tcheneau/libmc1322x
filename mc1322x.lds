@@ -266,4 +266,6 @@ HEAP_SIZE = 1024;
   .gnu.attributes 0 : { KEEP (*(.gnu.attributes)) }
   .note.gnu.arm.ident 0 : { KEEP (*(.note.gnu.arm.ident)) }
   /DISCARD/ : { *(.note.GNU-stack) *(.gnu_debuglink) }
+  __exidx_start = .;
+  __exidx_end = .;
 }
