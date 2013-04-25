@@ -613,6 +613,18 @@ void maca_isr(void) {
 	if (bit_is_set(*MACA_STATUS, maca_status_to))
 	{ PRINTF("maca timeout\n\r"); }
 
+	if(action_complete_irq()) {
+		/* PRINTF("maca action complete %d\n\r", get_field(*MACA_CONTROL,SEQUENCE)); */
+		if(last_post == TX_POST) {
+			tx_head->status = get_field(*MACA_STATUS,CODE);
+			if(maca_tx_callback != 0) { maca_tx_callback(tx_head); }
+			dma_tx = 0;
+			free_tx_head();
+			last_post = NO_POST;
+		}
+		ResumeMACASync();
+		*MACA_CLRIRQ = (1 << maca_irq_acpl);
+	}
 	if (data_indication_irq()) {
 		*MACA_CLRIRQ = (1 << maca_irq_di);
 		dma_rx->length = *MACA_GETRXLVL - 2; /* packet length does not include FCS */
@@ -645,20 +657,8 @@ void maca_isr(void) {
 	if (softclock_irq()) {
 		*MACA_CLRIRQ = (1 << maca_irq_sftclk);
 	}
-	if (poll_irq()) {		
+	if (poll_irq()) {
 		*MACA_CLRIRQ = (1 << maca_irq_poll);
-	}
-	if(action_complete_irq()) {
-		/* PRINTF("maca action complete %d\n\r", get_field(*MACA_CONTROL,SEQUENCE)); */
-		if(last_post == TX_POST) {
-			tx_head->status = get_field(*MACA_STATUS,CODE);
-			if(maca_tx_callback != 0) { maca_tx_callback(tx_head); }
-			dma_tx = 0;
-			free_tx_head();
-			last_post = NO_POST;
-		}
-		ResumeMACASync();
-		*MACA_CLRIRQ = (1 << maca_irq_acpl);		
 	}
 
 	decode_status();
