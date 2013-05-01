@@ -61,7 +61,9 @@ struct packet {
 	uint8_t get_free;
 	uint8_t rxd;
 	#endif
-	uint8_t data[MAX_PAYLOAD_SIZE+2+1]; /* +2 for FCS; + 1 since maca returns the length as the first byte */
+     /* +2 for FCS; + 1 since maca returns the length as the first byte + 4 because
+      * the canari value seems to be overwritten at times */
+	uint8_t data[MAX_PAYLOAD_SIZE+2+1+4];
 	uint8_t canari;
 };
 typedef struct packet packet_t;

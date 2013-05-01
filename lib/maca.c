@@ -292,6 +292,7 @@ int count_free(void) {
 /* heads are to the right */
 /* ends are to the left */
 void free_packet(volatile packet_t *p) {
+    int i;
 	safe_irq_disable(MACA);
 
 	BOUND_CHECK(p);
@@ -306,6 +307,7 @@ void free_packet(volatile packet_t *p) {
 
     p->free = 1;
 	p->length = 0; p->offset = 0;
+    p->left = 0;
 	p->right = 0;
 #if PACKET_STATS
 	p->seen = 0;
@@ -313,6 +315,9 @@ void free_packet(volatile packet_t *p) {
 	p->get_free = 0;
 	p->rxd = 0;
 #endif
+
+    for(i=0; i < MAX_PAYLOAD_SIZE + 2 +1 + 4; i++)
+        p->data[i] = 0;
 
 	BOUND_CHECK(free_head);
 
