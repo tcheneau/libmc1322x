@@ -43,6 +43,9 @@
 
 #define PACKET_STATS 0
 
+#define PACKET_TX 1
+#define PACKET_RX 2
+
 struct packet {
 	uint8_t free;
         uint8_t length; /* does not include FCS checksum */

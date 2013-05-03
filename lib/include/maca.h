@@ -70,7 +70,7 @@ extern volatile uint8_t prm_mode;
 /* maca packet interface */
 void tx_packet(volatile packet_t *p);
 volatile packet_t* rx_packet(void);
-volatile packet_t* get_free_packet(void);
+volatile packet_t* get_free_packet(int type);
 void free_packet(volatile packet_t *p);
 void free_all_packets(void);
 

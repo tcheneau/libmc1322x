@@ -79,7 +79,8 @@
 int count_packets(void);
 void Print_Packets(char *s);
 
-static volatile packet_t packet_pool[NUM_PACKETS];
+static volatile packet_t packet_pool_rx[NUM_PACKETS];
+static volatile packet_t packet_pool_tx[NUM_PACKETS];
 static volatile packet_t *rx_end, *tx_end, *dma_tx, *dma_rx;
 
 /* rx_head and tx_head are visible to the outside */
@@ -271,18 +272,31 @@ void bound_check(volatile packet_t *p) {
 	if((p == 0) ||
 	   (p == &dummy_ack)) { return; }
 	for(i=0; i < NUM_PACKETS; i++) {
-		if(p == &packet_pool[i]) { return; }
+		if(p == &packet_pool_tx[i]) { return; }
+	}
+	for(i=0; i < NUM_PACKETS; i++) {
+		if(p == &packet_pool_rx[i]) { return; }
 	}
 
 	bad_packet_bounds();
 }
 
 /* for debugging purposes */
-int count_free(void) {
+int count_free_rx(void) {
     int i, j = 0;
 
     for(i=0; i<NUM_PACKETS; i++) {
-        if (packet_pool[i].free) j++;
+        if (packet_pool_rx[i].free) j++;
+    }
+
+    return j;
+}
+
+int count_free_tx(void) {
+    int i, j = 0;
+
+    for(i=0; i<NUM_PACKETS; i++) {
+        if (packet_pool_tx[i].free) j++;
     }
 
     return j;
@@ -327,7 +341,7 @@ void free_packet(volatile packet_t *p) {
 	return;
 }
 
-volatile packet_t* get_free_packet(void) {
+volatile packet_t* get_free_packet(int type) {
 	volatile packet_t *p = NULL;
     volatile int i;
 
@@ -335,11 +349,24 @@ volatile packet_t* get_free_packet(void) {
 
 	BOUND_CHECK(free_head);
 
-    for(i=0; i<NUM_PACKETS; i++) {
-        if (packet_pool[i].free) {
-            p = &packet_pool[i];
-            p->free = 0;
-            break;
+    if (type != PACKET_RX && type != PACKET_TX)
+        BUG();
+
+    if (type == PACKET_RX) {
+        for(i=0; i<NUM_PACKETS; i++) {
+                if (packet_pool_rx[i].free) {
+                    p = &packet_pool_rx[i];
+                    p->free = 0;
+                    break;
+                }
+        }
+    } else { /* PACKET_TX */
+        for(i=0; i<NUM_PACKETS; i++) {
+                if (packet_pool_tx[i].free) {
+                    p = &packet_pool_tx[i];
+                    p->free = 0;
+                    break;
+                }
         }
     }
 
@@ -363,7 +390,7 @@ void post_receive(void) {
 	/* you will not receive anything without setting it */
 	*MACA_TXLEN = (MAX_PACKET_SIZE << 16);
 	if(dma_rx == 0) {
-		dma_rx = get_free_packet();
+		dma_rx = get_free_packet(PACKET_RX);
 		if (dma_rx == 0) {
 			PRINTF("trying to fill MACA_DMARX in post_receieve but out of packet buffers\n\r");
 			/* set the sftclock so that we return to the maca_isr */
@@ -429,7 +456,7 @@ void post_tx(void) {
 	*MACA_TXLEN = (uint32_t)((dma_tx->length) + 2) | (3 << 16); /* set rx len to ACK length */
 	*MACA_DMATX = (uint32_t)&(dma_tx->data[ 0 + dma_tx->offset]);
 	if(dma_rx == 0) {
-		dma_rx = get_free_packet();
+		dma_rx = get_free_packet(PACKET_RX);
 		if (dma_rx == 0) {
 			dma_rx = &dummy_ack;
 			PRINTF("trying to fill MACA_DMARX on post_tx but out of packet buffers\n\r");
@@ -492,8 +519,10 @@ void free_all_packets(void) {
 	safe_irq_disable(MACA);
 
 	for(i=0; i<NUM_PACKETS; i++) {
-        packet_pool[i].free = 1;
-        packet_pool[i].canari = 0xf0; /* this value should never change */
+        packet_pool_tx[i].free = 1;
+        packet_pool_tx[i].canari = 0xf0; /* this value should never change */
+        packet_pool_rx[i].free = 1;
+        packet_pool_rx[i].canari = 0xf0; /* this value should never change */
 	}
 	rx_head = 0; rx_end = 0;
 	tx_head = 0; tx_end = 0;
